@@ -21,9 +21,8 @@ from brain import (
 # -------------------------------
 app = Flask(__name__)
 
-# 🔥 OPENAI (Render safe)
+# 🔥 OPENAI (se mantiene para futuro)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-
 
 # -------------------------------
 # INIT DB SAFE
@@ -33,7 +32,6 @@ def init_db_safe():
         init_db()
     except Exception as e:
         print("DB init error:", e)
-
 
 # -------------------------------
 # INIT SOLO UNA VEZ
@@ -46,14 +44,12 @@ def init_once():
             cargar_productos_base()
         app.initialized = True
 
-
 # -------------------------------
 # ROUTES BASE
 # -------------------------------
 @app.route("/")
 def home():
     return render_template("login.html")
-
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -64,21 +60,17 @@ def login():
         return redirect("/dashboard")
     return "❌ Usuario o contraseña incorrectos"
 
-
 @app.route("/dashboard")
 def dashboard():
     return render_template("dashboard.html")
-
 
 @app.route("/tareas")
 def tareas():
     return render_template("tareas.html")
 
-
 @app.route("/inventario")
 def inventario():
     return render_template("inventario.html")
-
 
 @app.route("/productos")
 def productos():
@@ -90,14 +82,12 @@ def productos():
     conn.close()
     return render_template("productos.html", productos=productos)
 
-
 # -------------------------------
-# INVENTARIO
+# INVENTARIO (FUNCIONANDO SIN IA)
 # -------------------------------
 @app.route("/inventario/procesar", methods=["POST"])
 def procesar_inventario():
     return jsonify(preparar_operacion(request.json["comando"]))
-
 
 @app.route("/inventario/confirmar", methods=["POST"])
 def confirmar_inventario():
@@ -110,16 +100,13 @@ def confirmar_inventario():
         )
     )
 
-
 @app.route("/inventario/ver")
 def ver_inventario():
     return jsonify(obtener_inventario())
 
-
 @app.route("/inventario/limpiar", methods=["POST"])
 def limpiar():
     return jsonify(limpiar_inventario())
-
 
 @app.route("/inventario/cerrar")
 def cerrar():
@@ -132,72 +119,23 @@ def cerrar():
     except Exception as e:
         return f"Error: {e}"
 
-
 # -------------------------------
-# 🤖 IA OPENAI (MEJORADA LUNE)
+# 🤖 IA (AHORA USA TU SISTEMA INTERNO)
 # -------------------------------
 @app.route("/ia/interpretar", methods=["POST"])
 def ia():
     try:
         comando = request.json.get("comando")
 
-        respuesta = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": """
-Eres el sistema de inventario inteligente de LUNE.
+        resultado = preparar_operacion(comando)
 
-REGLAS:
-- Convierte frases a JSON válido
-- Detecta acción: agregar o restar
-- Extrae cantidad numérica
-- Normaliza productos (ej: "de asado" → "asado")
-- Corrige errores de voz o escritura
-- Usa SOLO productos simples
-- NO inventes productos nuevos
-- Si hay duda, ajusta al producto más cercano
-
-EJEMPLOS:
-
-"agrega 10 de asado"
-→ {"accion":"agregar","producto":"asado","cantidad":10}
-
-"resta 5 pollo"
-→ {"accion":"restar","producto":"pollo","cantidad":5}
-
-"agrega 2 de chorizo"
-→ {"accion":"agregar","producto":"chorizo","cantidad":2}
-
-RESPONDE SOLO JSON, SIN TEXTO EXTRA.
-"""
-                },
-                {
-                    "role": "user",
-                    "content": comando
-                }
-            ],
-            response_format={"type": "json_object"}
-        )
-
-        data_json = json.loads(respuesta.choices[0].message.content)
-
-        # 🔥 LIMPIEZA EXTRA SEGURA
-        if "producto" in data_json:
-            data_json["producto"] = data_json["producto"].replace("de ", "").strip()
-
-        return jsonify({
-            "ok": True,
-            "data": data_json
-        })
+        return jsonify(resultado)
 
     except Exception as e:
         return jsonify({
-            "ok": False,
-            "error": str(e)
+            "error": True,
+            "respuesta": f"Error interno: {str(e)}"
         })
-
 
 # -------------------------------
 # RUN LOCAL
