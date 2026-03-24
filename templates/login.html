@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+
+<div class="panel">
+
+
+
+<form method="POST" action="/login" class="form-login">
+
+<input 
+id="usuario"
+name="usuario"
+type="text"
+placeholder="Usuario"
+required
+>
+
+<input 
+id="password"
+name="password"
+type="password"
+placeholder="Contraseña"
+required
+>
+
+<button type="submit" class="btn-login">
+Entrar
+</button>
+
+</form>
+
+<button class="btn-voz" onclick="iniciarSistema()">
+🎤 Iniciar sistema por voz
+</button>
+
+</div>
+
+<script src="/static/js/login.js"></script>
+
+<script>
+
+function verVoces() {
+
+    let voces = speechSynthesis.getVoices();
+
+    console.log("===== VOCES DISPONIBLES =====");
+
+    voces.forEach((voz, i) => {
+
+        console.log(i + " | " + voz.name + " | " + voz.lang);
+
+    });
+
+}
+
+speechSynthesis.onvoiceschanged = verVoces;
+
+verVoces();
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,207 @@
+from flask import Flask, render_template, request, redirect, jsonify, send_file
+from db import verificar_usuario, conectar_db
+import os
+import json
+from datetime import datetime
+from openai import OpenAI
+
+from init_db import init_db
+
+from brain import (
+    cargar_productos_base,
+    preparar_operacion,
+    confirmar_operacion,
+    obtener_inventario,
+    cerrar_inventario,
+    limpiar_inventario
+)
+
+# -------------------------------
+# APP
+# -------------------------------
+app = Flask(__name__)
+
+# 🔥 OPENAI (Render safe)
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+
+# -------------------------------
+# INIT DB SAFE
+# -------------------------------
+def init_db_safe():
+    try:
+        init_db()
+    except Exception as e:
+        print("DB init error:", e)
+
+
+# -------------------------------
+# INIT SOLO UNA VEZ
+# -------------------------------
+@app.before_request
+def init_once():
+    if not hasattr(app, "initialized"):
+        with app.app_context():
+            init_db_safe()
+            cargar_productos_base()
+        app.initialized = True
+
+
+# -------------------------------
+# ROUTES BASE
+# -------------------------------
+@app.route("/")
+def home():
+    return render_template("login.html")
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    usuario = request.form["usuario"]
+    password = request.form["password"]
+
+    if verificar_usuario(usuario, password):
+        return redirect("/dashboard")
+    return "❌ Usuario o contraseña incorrectos"
+
+
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html")
+
+
+@app.route("/tareas")
+def tareas():
+    return render_template("tareas.html")
+
+
+@app.route("/inventario")
+def inventario():
+    return render_template("inventario.html")
+
+
+@app.route("/productos")
+def productos():
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, nombre FROM productos_base ORDER BY id")
+    productos = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template("productos.html", productos=productos)
+
+
+# -------------------------------
+# INVENTARIO
+# -------------------------------
+@app.route("/inventario/procesar", methods=["POST"])
+def procesar_inventario():
+    return jsonify(preparar_operacion(request.json["comando"]))
+
+
+@app.route("/inventario/confirmar", methods=["POST"])
+def confirmar_inventario():
+    data = request.json
+    return jsonify(
+        confirmar_operacion(
+            data["accion"],
+            data["producto"],
+            data["cantidad"]
+        )
+    )
+
+
+@app.route("/inventario/ver")
+def ver_inventario():
+    return jsonify(obtener_inventario())
+
+
+@app.route("/inventario/limpiar", methods=["POST"])
+def limpiar():
+    return jsonify(limpiar_inventario())
+
+
+@app.route("/inventario/cerrar")
+def cerrar():
+    try:
+        pdf = cerrar_inventario()
+        if not pdf:
+            return "No hay inventario"
+
+        return send_file(pdf, as_attachment=True)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+# -------------------------------
+# 🤖 IA OPENAI (MEJORADA LUNE)
+# -------------------------------
+@app.route("/ia/interpretar", methods=["POST"])
+def ia():
+    try:
+        comando = request.json.get("comando")
+
+        respuesta = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """
+Eres el sistema de inventario inteligente de LUNE.
+
+REGLAS:
+- Convierte frases a JSON válido
+- Detecta acción: agregar o restar
+- Extrae cantidad numérica
+- Normaliza productos (ej: "de asado" → "asado")
+- Corrige errores de voz o escritura
+- Usa SOLO productos simples
+- NO inventes productos nuevos
+- Si hay duda, ajusta al producto más cercano
+
+EJEMPLOS:
+
+"agrega 10 de asado"
+→ {"accion":"agregar","producto":"asado","cantidad":10}
+
+"resta 5 pollo"
+→ {"accion":"restar","producto":"pollo","cantidad":5}
+
+"agrega 2 de chorizo"
+→ {"accion":"agregar","producto":"chorizo","cantidad":2}
+
+RESPONDE SOLO JSON, SIN TEXTO EXTRA.
+"""
+                },
+                {
+                    "role": "user",
+                    "content": comando
+                }
+            ],
+            response_format={"type": "json_object"}
+        )
+
+        data_json = json.loads(respuesta.choices[0].message.content)
+
+        # 🔥 LIMPIEZA EXTRA SEGURA
+        if "producto" in data_json:
+            data_json["producto"] = data_json["producto"].replace("de ", "").strip()
+
+        return jsonify({
+            "ok": True,
+            "data": data_json
+        })
+
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        })
+
+
+# -------------------------------
+# RUN LOCAL
+# -------------------------------
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)

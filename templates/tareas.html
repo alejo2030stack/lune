@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="/static/css/estilos.css">
+    <title>Tareas LUNE</title>
+</head>
+<body>
+    <h2>Módulo Tareas</h2>
+
+    <div id="tareas-container">
+        <!-- Aquí se mostrarán tus tareas -->
+    </div>
+
+    <script src="/static/js/vozMotor.js"></script>
+    <script src="/static/js/sabina.js"></script>
+
+    <script>
+        // --- Módulo tareas ---
+        const ModuloTareas = {
+            activar() {
+                console.log("🎯 Módulo Tareas activo");
+                // Aquí puedes agregar lógica para comandos específicos de tareas
+            }
+        };
+
+        window.onload = () => {
+            // Inicia el micrófono
+            VozMotor.iniciar((comando) => {
+                comando = comando.toLowerCase().trim();
+
+                // Procesa comandos de tareas
+                if (comando.includes("agregar tarea")) {
+                    VozMotor.hablar("Ok, dime la tarea a agregar");
+                    // Aquí podrías abrir un input o enviar a backend
+                    return;
+                }
+
+                // Comandos generales, pueden ir a Sabina
+                Sabina.procesar(comando);
+            });
+
+            // Bienvenida de Sabina al entrar al módulo
+            setTimeout(() => {
+                VozMotor.hablar("Bienvenido al módulo de tareas");
+                ModuloTareas.activar();
+            }, 1000);
+        };
+    </script>
+
+    <button onclick="window.location.href='/dashboard'">Volver al Dashboard</button>
+</body>
+</html>

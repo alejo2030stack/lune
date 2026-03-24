@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>LUNE</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="stylesheet" href="/static/js/css/estilos.css">
+
+</head>
+
+<body>
+<div class="estado-microfono">
+    🎤 Estado:
+    <span id="luzMicrofono" class="microfono-luz microfono-inactivo"></span>
+</div>
+<div class="app">
+
+{% block contenido %}
+{% endblock %}
+
+</div>
+<script src="/static/js/microfonoEstado.js"></script>
+<script src="/static/js/vozMotor.js"></script>
+
+</body>
+
+</html>

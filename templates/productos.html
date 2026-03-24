@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+
+<div class="panel">
+
+<h2>Productos base</h2>
+
+<table class="tabla-productos">
+
+<tr>
+<th>ID</th>
+<th>Producto</th>
+</tr>
+
+{% for producto in productos %}
+
+<tr>
+<td>{{ producto[0] }}</td>
+<td>{{ producto[1] }}</td>
+</tr>
+
+{% endfor %}
+
+</table>
+
+</div>
+
+{% endblock %}

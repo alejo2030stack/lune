@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+
+<h2>Panel del sistema</h2>
+
+<div id="sabina-avatar"></div>
+
+<div id="botones-modulos">
+
+<button class="modulo-btn" id="btn-presentacion">
+📖 Presentación
+</button>
+
+<button class="modulo-btn" id="btn-inventario">
+📦 Inventario
+</button>
+
+<button class="modulo-btn" id="btn-tareas">
+📝 Tareas
+</button>
+<button onclick="window.location.href='/productos'">
+Ver productos
+</button>
+
+</div>
+
+<div id="informacion-sabina"></div>
+
+<script src="/static/js/modulos/informacion.js"></script>
+<script src="/static/js/modulos/inventario.js"></script>
+<script src="/static/js/modulos/tareas.js"></script>
+<script src="/static/js/sabina.js"></script>
+<script src="/static/js/dashboard.js"></script>
+
+{% endblock %}

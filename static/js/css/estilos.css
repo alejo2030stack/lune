@@ -1,0 +1,204 @@
+body{
+
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+
+background:#0f172a;
+color:white;
+
+min-height:100vh;
+
+}
+
+/* CONTENEDOR GENERAL */
+
+.app{
+
+display:flex;
+justify-content:center;
+align-items:center;
+
+min-height:100vh;
+
+}
+
+/* TARJETAS */
+
+.panel{
+
+background:#1e293b;
+
+padding:40px;
+
+border-radius:12px;
+
+width:320px;
+max-width:90%;
+
+text-align:center;
+
+box-shadow:0 10px 30px rgba(0,0,0,0.5);
+
+margin:auto;
+
+}
+
+/* TITULOS */
+
+.titulo{
+
+margin:0;
+font-size:28px;
+
+}
+
+.subtitulo{
+
+font-size:14px;
+color:#94a3b8;
+margin-bottom:25px;
+
+}
+
+/* FORMULARIO */
+
+.form-login{
+
+display:flex;
+flex-direction:column;
+align-items:center;
+
+}
+
+.form-login input{
+
+width:100%;
+
+padding:12px;
+
+margin-bottom:15px;
+
+border:none;
+border-radius:8px;
+
+font-size:14px;
+
+}
+
+/* BOTONES */
+
+.btn-login{
+
+width:100%;
+
+padding:12px;
+
+border:none;
+border-radius:8px;
+
+background:#3b82f6;
+
+color:white;
+
+font-size:16px;
+
+cursor:pointer;
+
+margin-bottom:15px;
+
+}
+
+.btn-login:hover{
+
+background:#2563eb;
+
+}
+
+.btn-voz{
+
+width:100%;
+
+padding:14px;
+
+border:none;
+border-radius:8px;
+
+background:#10b981;
+
+color:white;
+
+font-size:16px;
+
+cursor:pointer;
+
+}
+
+.btn-voz:hover{
+
+background:#059669;
+
+}
+
+/* TABLAS */
+
+table{
+
+width:100%;
+border-collapse:collapse;
+
+}
+
+th, td{
+
+padding:10px;
+
+text-align:left;
+
+}
+
+/* BOTONES GENERALES */
+
+button{
+
+font-family:inherit;
+
+}
+
+/* --------------------------- */
+/* INDICADOR DE MICROFONO */
+/* --------------------------- */
+
+.estado-microfono{
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.microfono-luz{
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: red;
+    margin-left: 8px;
+}
+
+.microfono-activo{
+    background: green;
+}
+
+.microfono-inactivo{
+    background: red;
+}
+
+/* RESPONSIVE */
+
+@media (max-width:500px){
+
+.panel{
+
+width:90%;
+padding:30px;
+
+}
+
+}
