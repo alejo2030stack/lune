@@ -8,12 +8,32 @@ from reportlab.lib.pagesizes import letter
 import datetime
 import os
 
+# -------------------------------
+# VARIABLES GLOBALES
+# -------------------------------
+
+lista_productos = []
+ultimo_producto = None  # 🔥 FIX IMPORTANTE
+
+# -------------------------------
+# LIMPIAR TEXTO (🔥 NUEVO)
+# -------------------------------
+
+def limpiar_texto(comando):
+    comando = comando.lower().strip()
+
+    palabras_basura = [" de ", " el ", " la ", " los ", " las "]
+
+    for palabra in palabras_basura:
+        comando = comando.replace(palabra, " ")
+
+    comando = " ".join(comando.split())
+
+    return comando
 
 # -------------------------------
 # PRODUCTOS OFICIALES
 # -------------------------------
-
-lista_productos = []
 
 def cargar_productos_base():
 
@@ -22,7 +42,7 @@ def cargar_productos_base():
     try:
         conn = conectar_db()
         if conn is None:
-            print("⚠️ No se pudo conectar a la DB, productos base no cargados")
+            print("⚠️ No se pudo conectar a la DB")
             lista_productos = []
             return
 
@@ -37,16 +57,8 @@ def cargar_productos_base():
         print("✅ Productos cargados:", lista_productos)
 
     except Exception as e:
-        print("⚠️ Error cargando productos base:", e)
+        print("⚠️ Error cargando productos:", e)
         lista_productos = []
-
-
-# -------------------------------
-# INVENTARIO TEMPORAL
-# -------------------------------
-
-inventario_temporal = {}
-
 
 # -------------------------------
 # BUSCAR PRODUCTO SIMILAR
@@ -61,11 +73,7 @@ def buscar_producto(producto):
         cutoff=0.5
     )
 
-    if coincidencias:
-        return coincidencias[0]
-
-    return None
-
+    return coincidencias[0] if coincidencias else None
 
 # -------------------------------
 # DETECTAR ACCION
@@ -84,10 +92,10 @@ def detectar_accion(comando):
         if palabra in comando:
             return "agregar"
 
-    # por defecto
     return "agregar"
+
 # -------------------------------
-# EXTRAER CANTIDAD Y PRODUCTO
+# EXTRAER DATOS
 # -------------------------------
 
 def extraer_datos(comando):
@@ -103,12 +111,8 @@ def extraer_datos(comando):
     cantidad = int(match.group(1))
     producto = match.group(2).strip()
 
-    # -------------------------------
-    # DETECTAR "MAS"
-    # -------------------------------
-
+    # 🔥 MANEJO DE "MAS"
     if producto in ["más", "mas", "más de", "mas de"]:
-
         if ultimo_producto:
             producto = ultimo_producto
         else:
@@ -122,7 +126,9 @@ def extraer_datos(comando):
 
 def preparar_operacion(comando):
 
-    comando = comando.lower()
+    global ultimo_producto
+
+    comando = limpiar_texto(comando)  # 🔥 FIX CLAVE
 
     accion = detectar_accion(comando)
 
@@ -142,6 +148,9 @@ def preparar_operacion(comando):
             "respuesta": "Producto no encontrado"
         }
 
+    # 🔥 GUARDAR ULTIMO PRODUCTO
+    ultimo_producto = producto_real
+
     return {
         "confirmacion": True,
         "accion": accion,
@@ -149,7 +158,6 @@ def preparar_operacion(comando):
         "cantidad": cantidad,
         "respuesta": f"¿Desea {accion} {cantidad} de {producto_real}?"
     }
-
 
 # -------------------------------
 # CONFIRMAR OPERACION
@@ -166,13 +174,11 @@ def confirmar_operacion(accion, producto, cantidad):
     )
 
     resultado = cursor.fetchone()
-
     cantidad_actual = resultado[0] if resultado else 0
 
     if accion == "agregar":
         nueva_cantidad = cantidad_actual + cantidad
-
-    elif accion == "restar":
+    else:
         nueva_cantidad = cantidad_actual - cantidad
 
     cursor.execute("""
@@ -183,7 +189,6 @@ def confirmar_operacion(accion, producto, cantidad):
     """, (producto, nueva_cantidad))
 
     conn.commit()
-
     cursor.close()
     conn.close()
 
@@ -201,123 +206,58 @@ def obtener_inventario():
     cursor = conn.cursor()
 
     cursor.execute("SELECT producto, cantidad FROM inventario_temp")
-
     filas = cursor.fetchall()
 
     cursor.close()
     conn.close()
 
-    inventario = {}
+    return {producto: cantidad for producto, cantidad in filas}
 
-    for producto, cantidad in filas:
-        inventario[producto] = cantidad
-
-    return inventario
-
-# ==================================================
-# NUEVO SISTEMA DE INFORME PDF
-# ==================================================
+# -------------------------------
+# PDF
+# -------------------------------
 
 def generar_informe_pdf(inventario):
+
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib import colors
-    import datetime
-    import os
 
-    # Crear carpeta si no existe
     if not os.path.exists("informes"):
         os.makedirs("informes")
 
-    # Nombre del archivo con fecha/hora
     fecha_archivo = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    nombre_archivo = f"informe_inventario_{fecha_archivo}.pdf"
-    ruta = f"informes/{nombre_archivo}"
+    ruta = f"informes/informe_{fecha_archivo}.pdf"
 
     styles = getSampleStyleSheet()
 
-    # --------------------------
-    # ENCABEZADO Y PIE DE PAGINA
-    # --------------------------
-    def encabezado_pie(canvas, doc):
-        canvas.saveState()
-        # Encabezado
-        canvas.setFont("Helvetica-Bold", 10)
-        canvas.drawString(40, 750, "LUNE SYSTEM")
-        canvas.setFont("Helvetica", 9)
-        canvas.drawString(40, 735, "Sistema de Inventario por Voz")
-
-        # Pie de página
-        canvas.setFont("Helvetica", 8)
-        canvas.drawString(40, 30, "Generado por LUNE | Desarrollado por Alejo")
-        canvas.drawRightString(550, 30, f"Página {doc.page}")
-        canvas.restoreState()
-
-    # --------------------------
-    # TITULO Y FECHA
-    # --------------------------
-    titulo = Paragraph("Informe de Inventario", styles["Title"])
-    fecha_texto = Paragraph(
-        f"Fecha: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}",
-        styles["Normal"]
-    )
-
-    # --------------------------
-    # TABLA CON ESTILO
-    # --------------------------
     datos = [["Producto", "Cantidad"]]
-    total_unidades = 0
+    total = 0
 
-    for producto, cantidad in inventario.items():
-        datos.append([producto.capitalize(), cantidad])
-        total_unidades += cantidad
+    for p, c in inventario.items():
+        datos.append([p.capitalize(), c])
+        total += c
 
     tabla = Table(datos)
     tabla.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.grey),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0,0), (-1,0), 10),
-        ('BACKGROUND', (0,1), (-1,-1), colors.beige),
         ('GRID', (0,0), (-1,-1), 1, colors.black)
     ]))
 
-    # --------------------------
-    # RESUMEN AL FINAL
-    # --------------------------
-    total_productos = len(inventario)
-    resumen1 = Paragraph(f"<b>Total de productos distintos:</b> {total_productos}", styles["Normal"])
-    resumen2 = Paragraph(f"<b>Total de unidades registradas:</b> {total_unidades}", styles["Normal"])
-
-    # --------------------------
-    # ELEMENTOS DEL PDF
-    # --------------------------
     elementos = [
-        titulo,
+        Paragraph("Informe de Inventario", styles["Title"]),
         Spacer(1, 20),
-        fecha_texto,
-        Spacer(1, 30),
         tabla,
-        Spacer(1, 30),
-        resumen1,
-        resumen2
+        Spacer(1, 20),
+        Paragraph(f"Total unidades: {total}", styles["Normal"])
     ]
 
-    # --------------------------
-    # GENERAR PDF
-    # --------------------------
     pdf = SimpleDocTemplate(ruta, pagesize=letter)
-    pdf.build(
-        elementos,
-        onFirstPage=encabezado_pie,
-        onLaterPages=encabezado_pie
-    )
+    pdf.build(elementos)
 
     return ruta
+
 # -------------------------------
-# CERRAR INVENTARIO
+# LIMPIAR INVENTARIO
 # -------------------------------
 
 def limpiar_inventario():
@@ -325,18 +265,17 @@ def limpiar_inventario():
     conn = conectar_db()
     cursor = conn.cursor()
 
-    # borrar todos los registros de la tabla de inventario temporal
     cursor.execute("DELETE FROM inventario_temp")
 
     conn.commit()
     cursor.close()
     conn.close()
 
-    return {
-        "respuesta": "Inventario limpiado"
-    }
+    return {"respuesta": "Inventario limpiado"}
 
-
+# -------------------------------
+# CERRAR INVENTARIO
+# -------------------------------
 
 def cerrar_inventario():
 
@@ -351,10 +290,7 @@ def cerrar_inventario():
         conn.close()
         return None
 
-    inventario = {}
-
-    for producto, cantidad in filas:
-        inventario[producto] = cantidad
+    inventario = {p: c for p, c in filas}
 
     ruta_pdf = generar_informe_pdf(inventario)
 
@@ -365,4 +301,3 @@ def cerrar_inventario():
     conn.close()
 
     return ruta_pdf
-    
