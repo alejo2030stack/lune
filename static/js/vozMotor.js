@@ -80,41 +80,26 @@ let VozMotor = {
         // 🔄 REINICIO INTELIGENTE (SIN ROMPER UI)
         this.reconocimiento.onend = () => {
 
-            console.log("🎤 sesión finalizada");
+    console.log("🎤 sesión finalizada");
 
-            this.isListening = false;
+    this.isListening = false;
 
-            let tiempoSinHablar = Date.now() - this.ultimaActividad;
+    // ⚡ REINICIO INMEDIATO SIN ESPERA
+    try {
+        this.reconocimiento.start();
+        console.log("⚡ reinicio inmediato");
+    } catch (e) {
+        console.log("Error reinicio:", e);
 
-            // ⚡ si estaba hablando → reinicio inmediato
-            if (tiempoSinHablar < 1200) {
+        // fallback mínimo
+        setTimeout(() => {
+            try {
+                this.reconocimiento.start();
+            } catch {}
+        }, 100);
+    }
 
-                setTimeout(() => {
-                    try {
-                        this.reconocimiento.start();
-                    } catch (e) {
-                        console.log("Error reinicio:", e);
-                    }
-                }, 100);
-
-                return;
-            }
-
-            // 🟡 estado visual de reinicio
-            if (typeof microfonoReiniciando === "function") {
-                microfonoReiniciando();
-            }
-
-            setTimeout(() => {
-                try {
-                    console.log("🎤 reiniciando micrófono...");
-                    this.reconocimiento.start();
-                } catch (e) {
-                    console.log("No se pudo reiniciar:", e);
-                }
-            }, 200);
-
-        };
+};
 
         // 🔴 ERROR REAL (único caso rojo)
         this.reconocimiento.onerror = (event) => {
