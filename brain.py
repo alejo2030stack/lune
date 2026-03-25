@@ -102,7 +102,7 @@ def extraer_datos(comando):
 
     global ultimo_producto
 
-    patron = r"(\d+)\s(.+)"
+    patron = r"(\d+)\s+(.*)"
     match = re.search(patron, comando)
 
     if not match:
