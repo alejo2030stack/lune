@@ -21,6 +21,22 @@ from brain import (
 # -------------------------------
 app = Flask(__name__)
 
+# -------------------------------
+# INIT DB SAFE
+# -------------------------------
+def init_db_safe():
+    try:
+        init_db()
+    except Exception as e:
+        print("DB init error:", e)
+
+# 🔥 inicialización correcta (DESPUÉS de definir función)
+with app.app_context():
+    init_db_safe()
+    cargar_productos_base()
+
+print("✅ App inicializada correctamente")
+
 # 🔥 OPENAI (se mantiene para futuro)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
@@ -36,13 +52,6 @@ def init_db_safe():
 # -------------------------------
 # INIT SOLO UNA VEZ
 # -------------------------------
-@app.before_request
-def init_once():
-    if not hasattr(app, "initialized"):
-        with app.app_context():
-            init_db_safe()
-            cargar_productos_base()
-        app.initialized = True
 
 # -------------------------------
 # ROUTES BASE
