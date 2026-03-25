@@ -8,6 +8,9 @@ let VozMotor = {
     temporizador: null,
     ultimaActividad: Date.now(),
 
+    // 🔥 estado real del micrófono
+    isListening: false,
+
     iniciar(callback) {
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -24,8 +27,10 @@ let VozMotor = {
         this.reconocimiento.continuous = true;
         this.reconocimiento.interimResults = false;
 
-        // 🟢 MICRÓFONO ACTIVO
+        // 🟢 MICRÓFONO ACTIVO REAL
         this.reconocimiento.onstart = () => {
+
+            this.isListening = true;
 
             console.log("🎤 Micrófono activo");
 
@@ -60,7 +65,7 @@ let VozMotor = {
 
                 if (this.callbackComando && fraseFinal.length > 3) {
 
-                    // 🟡 estado "pensando"
+                    // 🟡 estado procesando
                     if (typeof microfonoReiniciando === "function") {
                         microfonoReiniciando();
                     }
@@ -68,21 +73,21 @@ let VozMotor = {
                     this.callbackComando(fraseFinal);
                 }
 
-            }, 1200); // 🔥 más natural
+            }, 600); // 🔥 más rápido y natural
 
         };
 
-        // 🔄 REINICIO INTELIGENTE (CLAVE)
+        // 🔄 REINICIO INTELIGENTE (SIN ROMPER UI)
         this.reconocimiento.onend = () => {
 
             console.log("🎤 sesión finalizada");
 
+            this.isListening = false;
+
             let tiempoSinHablar = Date.now() - this.ultimaActividad;
 
-            // ⚡ SI EL USUARIO ESTABA HABLANDO → NO INTERRUMPIR
+            // ⚡ si estaba hablando → reinicio inmediato
             if (tiempoSinHablar < 1200) {
-
-                console.log("⚡ reinicio rápido (usuario hablando)");
 
                 setTimeout(() => {
                     try {
@@ -95,33 +100,28 @@ let VozMotor = {
                 return;
             }
 
-            // 🟡 estado normal de reinicio
+            // 🟡 estado visual de reinicio
             if (typeof microfonoReiniciando === "function") {
                 microfonoReiniciando();
             }
 
             setTimeout(() => {
-
                 try {
-
                     console.log("🎤 reiniciando micrófono...");
-
                     this.reconocimiento.start();
-
                 } catch (e) {
-
                     console.log("No se pudo reiniciar:", e);
-
                 }
-
-            }, 400);
+            }, 200);
 
         };
 
-        // 🔴 ERROR REAL
+        // 🔴 ERROR REAL (único caso rojo)
         this.reconocimiento.onerror = (event) => {
 
             console.log("⚠ Error en micrófono:", event.error);
+
+            this.isListening = false;
 
             if (typeof microfonoInactivo === "function") {
                 microfonoInactivo();
