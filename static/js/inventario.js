@@ -1,7 +1,6 @@
 let esperandoConfirmacion = false
 let operacionPendiente = null
-let modoActivo = false
-let tiempoEscucha = null
+
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -23,8 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (
                     comando.includes("elyra") ||
                     comando.includes("sistema") ||
-                    comando.includes("lune") ||
-                    comando.includes("hey elyra")
+                    comando.includes("lune")
                 ) {
                     VozMotor.hablar("Listo")
                     modoActivo = true
