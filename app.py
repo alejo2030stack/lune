@@ -43,11 +43,6 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 # -------------------------------
 # INIT DB SAFE
 # -------------------------------
-def init_db_safe():
-    try:
-        init_db()
-    except Exception as e:
-        print("DB init error:", e)
 
 # -------------------------------
 # INIT SOLO UNA VEZ
