@@ -109,19 +109,19 @@ function procesarComandoIA(comando) {
         .then(res => res.json())
         .then(data => {
 
-            if (!data.ok) {
-                VozMotor.hablar("No pude entender el comando")
+            console.log("🧠 respuesta backend:", data)
+
+            if (data.error) {
+                VozMotor.hablar(data.respuesta || "No pude entender el comando")
                 return
             }
 
-            const ia = data.data
-
             const operacion = {
-                accion: ia.accion,
-                producto: ia.producto,
-                cantidad: ia.cantidad,
+                accion: data.accion,
+                producto: data.producto,
+                cantidad: data.cantidad,
                 confirmacion: true,
-                respuesta: `¿${ia.accion} ${ia.cantidad} ${ia.producto}?`
+                respuesta: data.respuesta
             }
 
             document.getElementById("respuesta").innerText = operacion.respuesta
@@ -129,10 +129,6 @@ function procesarComandoIA(comando) {
 
             esperandoConfirmacion = true
             operacionPendiente = operacion
-        })
-        .catch(err => {
-            console.error("Error IA:", err)
-            VozMotor.hablar("Error al usar inteligencia artificial")
         })
 }
 
