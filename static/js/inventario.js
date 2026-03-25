@@ -1,7 +1,6 @@
 let esperandoConfirmacion = false
 let operacionPendiente = null
 
-
 document.addEventListener("DOMContentLoaded", () => {
 
     actualizarInventario()
@@ -14,31 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
             comando = comando.toLowerCase().trim()
 
             document.getElementById("transcripcion").innerText = comando
-
-            // ---------------------------------
-            // 🔥 WAKE WORD (ELYRA / SISTEMA / LUNE)
-            // ---------------------------------
-            if (!modoActivo) {
-                if (
-                    comando.includes("elyra") ||
-                    comando.includes("sistema") ||
-                    comando.includes("lune")
-                ) {
-                    VozMotor.hablar("Listo")
-                    modoActivo = true
-
-                    if (tiempoEscucha) clearTimeout(tiempoEscucha)
-
-                    tiempoEscucha = setTimeout(() => {
-                        modoActivo = false
-                        VozMotor.hablar("Modo reposo")
-                    }, 6000)
-
-                    return
-                }
-
-                return
-            }
 
             // ---------------------------------
             // LIMPIAR INVENTARIO
@@ -103,6 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     VozMotor.hablar("Operación cancelada")
 
                 } else {
+
                     VozMotor.hablar("No entendí, diga sí o no")
                     return
                 }
