@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
             procesando = true
 
             // ---------------------------------
-            // COMANDOS DIRECTOS (OPTIMIZADO)
+            // COMANDOS DIRECTOS
             // ---------------------------------
 
             if (/limpiar inventario|reiniciar inventario/.test(comando)) {
@@ -34,22 +34,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (/cerrar inventario|terminar inventario|finalizar inventario/.test(comando)) {
                 VozMotor.hablar("Generando informe de inventario")
+
+                procesando = false // 🔥 FIX CLAVE
+
                 setTimeout(() => {
                     window.location.href = "/inventario/cerrar"
                 }, 1200)
+
                 return
             }
 
             if (/inicio|volver/.test(comando)) {
                 VozMotor.hablar("Volviendo al panel principal")
+
+                procesando = false // 🔥 FIX CLAVE
+
                 setTimeout(() => {
                     window.location.href = "/dashboard"
                 }, 700)
+
                 return
             }
 
             // ---------------------------------
-            // CONFIRMACIÓN (OPTIMIZADO)
+            // CONFIRMACIÓN
             // ---------------------------------
             if (esperandoConfirmacion) {
 
@@ -80,7 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             // ---------------------------------
-            // IA (OPTIMIZADO)
+            // IA
             // ---------------------------------
             procesarComandoIA(comando)
         })
@@ -89,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // ---------------------------------
-// IA (OPTIMIZADO)
+// IA
 // ---------------------------------
 async function procesarComandoIA(comando) {
 
@@ -131,11 +139,14 @@ async function procesarComandoIA(comando) {
 
 
 // ---------------------------------
-// CONFIRMAR OPERACIÓN (OPTIMIZADO)
+// CONFIRMAR OPERACIÓN
 // ---------------------------------
 async function confirmarOperacion() {
 
-    if (!operacionPendiente) return
+    if (!operacionPendiente) {
+        procesando = false
+        return
+    }
 
     try {
         const res = await fetch("/inventario/confirmar", {
@@ -161,7 +172,7 @@ async function confirmarOperacion() {
 
 
 // ---------------------------------
-// INVENTARIO (OPTIMIZADO)
+// INVENTARIO
 // ---------------------------------
 async function actualizarInventario() {
 
@@ -171,7 +182,6 @@ async function actualizarInventario() {
 
         const tabla = document.getElementById("inventario")
 
-        // 🔥 render más rápido
         let html = ""
 
         for (let producto in data) {
