@@ -86,7 +86,7 @@ const VozMotor = {
 
                 this.callbackComando(texto);
 
-                this.activo = false; // 🔴 se desactiva después de comando
+                // 🔥 YA NO SE APAGA AQUÍ
             }
         };
 
