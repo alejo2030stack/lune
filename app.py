@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, jsonify, send_file
 from db import verificar_usuario, conectar_db
 import os
+import json
+from datetime import datetime
 from openai import OpenAI
 
 from init_db import init_db
@@ -19,14 +21,6 @@ from brain import (
 # -------------------------------
 app = Flask(__name__)
 
-# ⚡ JSON más rápido
-app.config["JSONIFY_PRETTYPRINT_REGULAR"] = False
-
-# -------------------------------
-# CACHE
-# -------------------------------
-productos_cache = []
-
 # -------------------------------
 # INIT DB SAFE
 # -------------------------------
@@ -34,17 +28,25 @@ def init_db_safe():
     try:
         init_db()
     except Exception as e:
-        print("⚠️ DB init error:", e)
+        print("DB init error:", e)
 
-# 🔥 INIT
+# 🔥 inicialización correcta (DESPUÉS de definir función)
 with app.app_context():
     init_db_safe()
     cargar_productos_base()
 
-print("🚀 Sistema listo: DB + productos cargados")
+print("✅ App inicializada correctamente")
 
-# 🔥 OPENAI (futuro)
+# 🔥 OPENAI (se mantiene para futuro)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+# -------------------------------
+# INIT DB SAFE
+# -------------------------------
+
+# -------------------------------
+# INIT SOLO UNA VEZ
+# -------------------------------
 
 # -------------------------------
 # ROUTES BASE
@@ -55,17 +57,12 @@ def home():
 
 @app.route("/login", methods=["POST"])
 def login():
-    try:
-        usuario = request.form["usuario"]
-        password = request.form["password"]
+    usuario = request.form["usuario"]
+    password = request.form["password"]
 
-        if verificar_usuario(usuario, password):
-            return redirect("/dashboard")
-
-        return "❌ Usuario o contraseña incorrectos"
-
-    except Exception as e:
-        return f"Error login: {e}"
+    if verificar_usuario(usuario, password):
+        return redirect("/dashboard")
+    return "❌ Usuario o contraseña incorrectos"
 
 @app.route("/dashboard")
 def dashboard():
@@ -79,99 +76,64 @@ def tareas():
 def inventario():
     return render_template("inventario.html")
 
-# -------------------------------
-# PRODUCTOS (CON CACHE)
-# -------------------------------
 @app.route("/productos")
 def productos():
-
-    global productos_cache
-
-    if not productos_cache:
-        try:
-            conn = conectar_db()
-            cur = conn.cursor()
-
-            cur.execute("SELECT id, nombre FROM productos_base ORDER BY id")
-            productos_cache = cur.fetchall()
-
-            cur.close()
-            conn.close()
-
-        except Exception as e:
-            return f"Error DB productos: {e}"
-
-    return render_template("productos.html", productos=productos_cache)
+    conn = conectar_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, nombre FROM productos_base ORDER BY id")
+    productos = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template("productos.html", productos=productos)
 
 # -------------------------------
-# INVENTARIO
+# INVENTARIO (FUNCIONANDO SIN IA)
 # -------------------------------
 @app.route("/inventario/procesar", methods=["POST"])
 def procesar_inventario():
-    try:
-        comando = request.json.get("comando", "")
-        return jsonify(preparar_operacion(comando))
-
-    except Exception as e:
-        return jsonify({
-            "error": True,
-            "respuesta": f"Error: {str(e)}"
-        })
+    return jsonify(preparar_operacion(request.json["comando"]))
 
 @app.route("/inventario/confirmar", methods=["POST"])
 def confirmar_inventario():
-    try:
-        data = request.json
-
-        resultado = confirmar_operacion(
+    data = request.json
+    return jsonify(
+        confirmar_operacion(
             data["accion"],
             data["producto"],
             data["cantidad"]
         )
-
-        return jsonify(resultado)
-
-    except Exception as e:
-        return jsonify({
-            "error": True,
-            "respuesta": str(e)
-        })
+    )
 
 @app.route("/inventario/ver")
 def ver_inventario():
-    try:
-        return jsonify(obtener_inventario())
-    except Exception as e:
-        return jsonify({"error": str(e)})
+    return jsonify(obtener_inventario())
 
 @app.route("/inventario/limpiar", methods=["POST"])
 def limpiar():
-    try:
-        return jsonify(limpiar_inventario())
-    except Exception as e:
-        return jsonify({"error": str(e)})
+    return jsonify(limpiar_inventario())
 
 @app.route("/inventario/cerrar")
 def cerrar():
     try:
         pdf = cerrar_inventario()
-
         if not pdf:
             return "No hay inventario"
 
         return send_file(pdf, as_attachment=True)
-
     except Exception as e:
         return f"Error: {e}"
 
 # -------------------------------
-# IA (OPCIONAL FUTURO)
+# 🤖 IA (AHORA USA TU SISTEMA INTERNO)
 # -------------------------------
 @app.route("/ia/interpretar", methods=["POST"])
 def ia():
     try:
-        comando = request.json.get("comando", "")
-        return jsonify(preparar_operacion(comando))
+        comando = request.json.get("comando")
+
+        resultado = preparar_operacion(comando)
+
+        return jsonify(resultado)
 
     except Exception as e:
         return jsonify({
@@ -180,7 +142,7 @@ def ia():
         })
 
 # -------------------------------
-# RUN
+# RUN LOCAL
 # -------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
