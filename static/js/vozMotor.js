@@ -1,15 +1,13 @@
-let VozMotor = {
+const VozMotor = {
 
     reconocimiento: null,
     callbackComando: null,
     vozSistema: null,
 
-    bufferFrase: "",
-    temporizador: null,
-    ultimaActividad: Date.now(),
-
-    // 🔥 estado real del micrófono
     isListening: false,
+    activo: false, // 🔥 modo activado (wake)
+
+    ultimoResultado: "",
 
     iniciar(callback) {
 
@@ -24,87 +22,78 @@ let VozMotor = {
 
         this.reconocimiento = new SpeechRecognition();
         this.reconocimiento.lang = "es-ES";
-        this.reconocimiento.continuous = true;
+        this.reconocimiento.continuous = false; // 🔥 control manual
         this.reconocimiento.interimResults = false;
 
-        // 🟢 MICRÓFONO ACTIVO REAL
+        // --------------------------
+        // 🎤 INICIO
+        // --------------------------
         this.reconocimiento.onstart = () => {
 
             this.isListening = true;
-
-            console.log("🎤 Micrófono activo");
+            console.log("🎤 escuchando");
 
             if (typeof microfonoActivo === "function") {
                 microfonoActivo();
             }
-
         };
 
-        // 🧠 BUFFER INTELIGENTE (ANTI CORTES)
+        // --------------------------
+        // 🧠 RESULTADO (OPTIMIZADO)
+        // --------------------------
         this.reconocimiento.onresult = (event) => {
 
-            let texto = event.results[event.results.length - 1][0].transcript;
+            let texto = event.results[0][0].transcript
+                .toLowerCase()
+                .trim();
 
-            texto = texto.toLowerCase().trim();
+            console.log("🎤 escuchado:", texto);
 
-            console.log("🎤 fragmento:", texto);
+            // 🔥 evitar duplicados
+            if (texto === this.ultimoResultado) return;
+            this.ultimoResultado = texto;
 
-            this.ultimaActividad = Date.now();
+            setTimeout(() => this.ultimoResultado = "", 1000);
 
-            this.bufferFrase += " " + texto;
+            // --------------------------
+            // 🔥 WAKE WORD
+            // --------------------------
+            if (!this.activo) {
 
-            clearTimeout(this.temporizador);
+                if (texto.includes("lune")) {
 
-            this.temporizador = setTimeout(() => {
+                    this.activo = true;
 
-                let fraseFinal = this.bufferFrase.trim();
+                    console.log("🟢 LUNE ACTIVADO");
 
-                this.bufferFrase = "";
+                    this.hablar("te escucho");
 
-                console.log("🧠 frase final:", fraseFinal);
-
-                if (this.callbackComando && fraseFinal.length > 3) {
-
-                    // 🟡 estado procesando
-                    if (typeof microfonoReiniciando === "function") {
-                        microfonoReiniciando();
-                    }
-
-                    this.callbackComando(fraseFinal);
+                    // volver a escuchar inmediatamente
+                    this.iniciarEscucha();
                 }
 
-            }, 600); // 🔥 más rápido y natural
+                return;
+            }
 
+            // --------------------------
+            // 🔥 PROCESAR COMANDO
+            // --------------------------
+            if (this.callbackComando && texto.length > 2) {
+
+                if (typeof microfonoReiniciando === "function") {
+                    microfonoReiniciando();
+                }
+
+                this.callbackComando(texto);
+
+                this.activo = false; // 🔴 se desactiva después de comando
+            }
         };
 
-        // 🔄 REINICIO INTELIGENTE (SIN ROMPER UI)
+        // --------------------------
+        // 🔄 FIN (CONTROLADO)
+        // --------------------------
         this.reconocimiento.onend = () => {
-
-    console.log("🎤 sesión finalizada");
-
-    this.isListening = false;
-
-    // ⚡ REINICIO INMEDIATO SIN ESPERA
-    try {
-        this.reconocimiento.start();
-        console.log("⚡ reinicio inmediato");
-    } catch (e) {
-        console.log("Error reinicio:", e);
-
-        // fallback mínimo
-        setTimeout(() => {
-            try {
-                this.reconocimiento.start();
-            } catch {}
-        }, 100);
-    }
-
-};
-
-        // 🔴 ERROR REAL (único caso rojo)
-        this.reconocimiento.onerror = (event) => {
-
-            console.log("⚠ Error en micrófono:", event.error);
 
             this.isListening = false;
 
@@ -112,36 +101,70 @@ let VozMotor = {
                 microfonoInactivo();
             }
 
+            // 🔥 solo reactivar si NO está en modo activo
+            if (!this.activo) {
+                setTimeout(() => this.iniciarEscucha(), 300);
+            }
         };
 
-        this.reconocimiento.start();
+        // --------------------------
+        // ⚠️ ERROR
+        // --------------------------
+        this.reconocimiento.onerror = (event) => {
+
+            console.log("⚠️ error mic:", event.error);
+
+            this.isListening = false;
+
+            setTimeout(() => this.iniciarEscucha(), 500);
+        };
 
         this.cargarVoz();
 
-        console.log("🎤 VozMotor iniciado");
+        this.iniciarEscucha();
 
+        console.log("🚀 VozMotor 2.0 listo");
     },
 
+    // --------------------------
+    // 🎤 CONTROL MANUAL
+    // --------------------------
+    iniciarEscucha() {
+        if (!this.isListening) {
+            try {
+                this.reconocimiento.start();
+            } catch (e) {
+                console.log("⚠️ error start:", e);
+            }
+        }
+    },
+
+    detenerEscucha() {
+        if (this.isListening) {
+            this.reconocimiento.stop();
+        }
+    },
+
+    // --------------------------
+    // 🔊 VOZ
+    // --------------------------
     cargarVoz() {
 
-        let seleccionar = () => {
+        const seleccionar = () => {
 
             let voces = speechSynthesis.getVoices();
 
             this.vozSistema = voces.find(v =>
-                v.name === "Microsoft Sabina - Spanish (Mexico)"
+                v.name.includes("Sabina") || v.lang.includes("es")
             );
 
             if (this.vozSistema) {
-                console.log("🔊 Voz Sabina cargada");
+                console.log("🔊 voz cargada:", this.vozSistema.name);
             }
-
         };
 
         seleccionar();
-
         speechSynthesis.onvoiceschanged = seleccionar;
-
     },
 
     hablar(texto, modo = "normal") {
@@ -152,33 +175,34 @@ let VozMotor = {
 
         let mensaje = new SpeechSynthesisUtterance(texto);
 
-        mensaje.lang = "es-MX";
+        mensaje.lang = "es-ES";
 
         if (this.vozSistema) {
             mensaje.voice = this.vozSistema;
         }
 
-        if (modo === "alegre") {
-            mensaje.pitch = 1.5;
-            mensaje.rate = 1.2;
-        }
-        else if (modo === "alerta") {
-            mensaje.pitch = 1.1;
-            mensaje.rate = 1;
-        }
-        else if (modo === "secreto") {
-            mensaje.pitch = 1.0;
-            mensaje.rate = 0.9;
-        }
-        else {
-            mensaje.pitch = 1.3;
-            mensaje.rate = 1.1;
+        // 🎭 estilos de voz
+        switch (modo) {
+            case "alegre":
+                mensaje.pitch = 1.5;
+                mensaje.rate = 1.2;
+                break;
+            case "alerta":
+                mensaje.pitch = 1.1;
+                mensaje.rate = 1;
+                break;
+            case "secreto":
+                mensaje.pitch = 1.0;
+                mensaje.rate = 0.9;
+                break;
+            default:
+                mensaje.pitch = 1.3;
+                mensaje.rate = 1.1;
         }
 
         mensaje.volume = 1;
 
         speechSynthesis.speak(mensaje);
-
     }
 
 };

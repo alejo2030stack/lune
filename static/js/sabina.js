@@ -1,5 +1,8 @@
 const Sabina = {
 
+    ultimoComando: "",
+    bloqueado: false,
+
     bienvenida() {
         VozMotor.hablar("Bienvenido al sistema LUNE");
     },
@@ -13,66 +16,81 @@ const Sabina = {
 
         comando = comando.toLowerCase().trim();
 
+        // 🔥 evitar duplicados
+        if (comando === this.ultimoComando) return;
+        this.ultimoComando = comando;
+
+        setTimeout(() => this.ultimoComando = "", 1000);
+
+        // 🔥 evitar ejecución múltiple simultánea
+        if (this.bloqueado) return;
+        this.bloqueado = true;
+
+        console.log("🧠 Sabina:", comando);
+
+        // ⚡ feedback inmediato (clave UX)
+        VozMotor.hablar("ok", "secreto");
 
         // ------------------------------
         // 1️⃣ COMANDOS GLOBALES
         // ------------------------------
-
         if (this.comandosGlobales(comando)) {
+            this.liberar();
             return;
         }
 
-
         // ------------------------------
-        // 2️⃣ ESTADOS CONVERSACIONALES
+        // 2️⃣ ESTADOS
         // ------------------------------
-
         if (this.procesarEstados(comando)) {
+            this.liberar();
             return;
         }
-
 
         // ------------------------------
         // 3️⃣ MÓDULOS
         // ------------------------------
-
         if (this.procesarModulos(comando)) {
+            this.liberar();
             return;
         }
 
+        // ⚠️ fallback
+        VozMotor.hablar("No entendí el comando");
+
+        this.liberar();
     },
 
+    liberar() {
+        setTimeout(() => {
+            this.bloqueado = false;
+        }, 300);
+    },
 
     // ------------------------------
-    // COMANDOS GLOBALES
+    // COMANDOS GLOBALES (OPTIMIZADO)
     // ------------------------------
-
     comandosGlobales(comando) {
 
-        const palabrasInicio = ["inicio", "volver a inicio", "ir a inicio"];
-
-        if (palabrasInicio.some(p => comando.includes(p))) {
+        // ⚡ regex más rápido
+        if (/inicio|volver a inicio|ir a inicio/.test(comando)) {
 
             VozMotor.hablar("Regresando al menú principal");
 
-            window.location.href = "/dashboard";
+            setTimeout(() => {
+                window.location.href = "/dashboard";
+            }, 700);
 
             return true;
         }
 
-
-        const palabrasCerrar = [
-            "cerrar inventario",
-            "cerrar recepción",
-            "terminar inventario",
-            "finalizar inventario"
-        ];
-
-        if (palabrasCerrar.some(p => comando.includes(p))) {
+        if (/cerrar inventario|cerrar recepción|terminar inventario|finalizar inventario/.test(comando)) {
 
             VozMotor.hablar("Generando informe de inventario");
 
-            window.location.href = "/inventario/cerrar";
+            setTimeout(() => {
+                window.location.href = "/inventario/cerrar";
+            }, 800);
 
             setTimeout(() => {
                 window.location.href = "/dashboard";
@@ -84,37 +102,29 @@ const Sabina = {
         return false;
     },
 
-
     // ------------------------------
-    // ESTADOS DE CONVERSACIÓN
+    // ESTADOS (SIN CAMBIOS PERO LIMPIO)
     // ------------------------------
-
     procesarEstados(comando) {
 
-        if (Conversacion.estado === "esperando_usuario") {
+        switch (Conversacion.estado) {
 
-            Conversacion.usuario = comando;
+            case "esperando_usuario":
+                Conversacion.usuario = comando;
+                verificarUsuario(comando);
+                return true;
 
-            verificarUsuario(comando);
-
-            return true;
-        }
-
-        if (Conversacion.estado === "esperando_password") {
-
-            verificarPassword(comando);
-
-            return true;
+            case "esperando_password":
+                verificarPassword(comando);
+                return true;
         }
 
         return false;
     },
 
-
     // ------------------------------
-    // ACTIVACIÓN DE MÓDULOS
+    // MÓDULOS (OPTIMIZADO)
     // ------------------------------
-
     procesarModulos(comando) {
 
         if (ModuloInformacion.verificarComando(comando)) {
@@ -126,7 +136,9 @@ const Sabina = {
 
             VozMotor.hablar("Redirigiendo a tareas");
 
-            ModuloTareas.activar();
+            setTimeout(() => {
+                ModuloTareas.activar();
+            }, 500);
 
             return true;
         }

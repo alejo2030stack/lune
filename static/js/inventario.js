@@ -1,11 +1,13 @@
 let esperandoConfirmacion = false
 let operacionPendiente = null
 
+// 🔥 evitar múltiples requests simultáneos
+let procesando = false
+
 document.addEventListener("DOMContentLoaded", () => {
 
     actualizarInventario()
 
-    // 🔥 iniciar VozMotor solo si existe
     if (typeof VozMotor !== "undefined" && !VozMotor.reconocimiento) {
 
         VozMotor.iniciar((comando) => {
@@ -14,55 +16,44 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById("transcripcion").innerText = comando
 
+            // 🔥 evitar doble ejecución
+            if (procesando) return
+            procesando = true
+
             // ---------------------------------
-            // LIMPIAR INVENTARIO
+            // COMANDOS DIRECTOS (OPTIMIZADO)
             // ---------------------------------
-            if (
-                comando.includes("limpiar inventario") ||
-                comando.includes("reiniciar inventario")
-            ) {
+
+            if (/limpiar inventario|reiniciar inventario/.test(comando)) {
                 VozMotor.hablar("¿Desea limpiar todo el inventario?")
                 esperandoConfirmacion = true
                 operacionPendiente = { accion: "limpiar" }
+                procesando = false
                 return
             }
 
-            // ---------------------------------
-            // CERRAR INVENTARIO
-            // ---------------------------------
-            if (
-                comando.includes("cerrar inventario") ||
-                comando.includes("terminar inventario") ||
-                comando.includes("finalizar inventario")
-            ) {
+            if (/cerrar inventario|terminar inventario|finalizar inventario/.test(comando)) {
                 VozMotor.hablar("Generando informe de inventario")
                 setTimeout(() => {
                     window.location.href = "/inventario/cerrar"
-                }, 1500)
+                }, 1200)
                 return
             }
 
-            // ---------------------------------
-            // VOLVER AL DASHBOARD
-            // ---------------------------------
-            if (
-                comando.includes("inicio") ||
-                comando.includes("volver")
-            ) {
+            if (/inicio|volver/.test(comando)) {
                 VozMotor.hablar("Volviendo al panel principal")
-                window.location.href = "/dashboard"
+                setTimeout(() => {
+                    window.location.href = "/dashboard"
+                }, 700)
                 return
             }
 
             // ---------------------------------
-            // CONFIRMACION
+            // CONFIRMACIÓN (OPTIMIZADO)
             // ---------------------------------
             if (esperandoConfirmacion) {
 
-                const afirmativos = ["si", "sí", "ok", "dale", "correcto", "confirmar", "hazlo", "ya", "vale"]
-                const negativos = ["no", "cancelar", "detener", "olvidalo", "olvídalo", "anular"]
-
-                if (afirmativos.some(p => comando.includes(p))) {
+                if (/si|sí|ok|dale|correcto|confirmar|hazlo|ya|vale/.test(comando)) {
 
                     VozMotor.hablar("Confirmado")
 
@@ -72,23 +63,24 @@ document.addEventListener("DOMContentLoaded", () => {
                         confirmarOperacion()
                     }
 
-                } else if (negativos.some(p => comando.includes(p))) {
+                } else if (/no|cancelar|detener|olvidalo|olvídalo|anular/.test(comando)) {
 
                     VozMotor.hablar("Operación cancelada")
 
                 } else {
-
-                    VozMotor.hablar("No entendí, diga sí o no")
+                    VozMotor.hablar("Diga sí o no")
+                    procesando = false
                     return
                 }
 
                 esperandoConfirmacion = false
                 operacionPendiente = null
+                procesando = false
                 return
             }
 
             // ---------------------------------
-            // PROCESO NORMAL (IA)
+            // IA (OPTIMIZADO)
             // ---------------------------------
             procesarComandoIA(comando)
         })
@@ -97,127 +89,126 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // ---------------------------------
-// IA: interpretar comando
+// IA (OPTIMIZADO)
 // ---------------------------------
-function procesarComandoIA(comando) {
+async function procesarComandoIA(comando) {
 
-    fetch("/ia/interpretar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comando })
-    })
-        .then(res => res.json())
-        .then(data => {
-
-            console.log("🧠 respuesta backend:", data)
-
-            if (data.error) {
-                VozMotor.hablar(data.respuesta || "No pude entender el comando")
-                return
-            }
-
-            const operacion = {
-                accion: data.accion,
-                producto: data.producto,
-                cantidad: data.cantidad,
-                confirmacion: true,
-                respuesta: data.respuesta
-            }
-
-            document.getElementById("respuesta").innerText = operacion.respuesta
-            VozMotor.hablar(operacion.respuesta)
-
-            esperandoConfirmacion = true
-            operacionPendiente = operacion
+    try {
+        const res = await fetch("/inventario/procesar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ comando })
         })
+
+        const data = await res.json()
+
+        console.log("🧠 backend:", data)
+
+        if (data.error) {
+            VozMotor.hablar(data.respuesta || "No entendí")
+            procesando = false
+            return
+        }
+
+        operacionPendiente = {
+            accion: data.accion,
+            producto: data.producto,
+            cantidad: data.cantidad
+        }
+
+        document.getElementById("respuesta").innerText = data.respuesta
+        VozMotor.hablar(data.respuesta)
+
+        esperandoConfirmacion = true
+
+    } catch (err) {
+        console.error(err)
+        VozMotor.hablar("Error procesando comando")
+    }
+
+    procesando = false
 }
 
 
 // ---------------------------------
-// CONFIRMAR OPERACIÓN
+// CONFIRMAR OPERACIÓN (OPTIMIZADO)
 // ---------------------------------
-function confirmarOperacion() {
+async function confirmarOperacion() {
 
     if (!operacionPendiente) return
 
-    fetch("/inventario/confirmar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            accion: operacionPendiente.accion,
-            producto: operacionPendiente.producto,
-            cantidad: operacionPendiente.cantidad
+    try {
+        const res = await fetch("/inventario/confirmar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(operacionPendiente)
         })
-    })
-        .then(res => res.json())
-        .then(data => {
 
-            document.getElementById("respuesta").innerText = data.respuesta
-            VozMotor.hablar(data.respuesta)
+        const data = await res.json()
 
-            actualizarInventario()
+        document.getElementById("respuesta").innerText = data.respuesta
+        VozMotor.hablar(data.respuesta)
 
-            esperandoConfirmacion = false
-            operacionPendiente = null
-        })
-        .catch(err => {
-            console.error("Error:", err)
-            VozMotor.hablar("No se pudo confirmar la operación")
-        })
+        actualizarInventario()
+
+    } catch (err) {
+        console.error(err)
+        VozMotor.hablar("Error confirmando operación")
+    }
+
+    procesando = false
 }
 
 
 // ---------------------------------
-// ACTUALIZAR INVENTARIO
+// INVENTARIO (OPTIMIZADO)
 // ---------------------------------
-function actualizarInventario() {
+async function actualizarInventario() {
 
-    fetch("/inventario/ver")
-        .then(res => res.json())
-        .then(data => {
+    try {
+        const res = await fetch("/inventario/ver")
+        const data = await res.json()
 
-            const tabla = document.getElementById("inventario")
-            tabla.innerHTML = ""
+        const tabla = document.getElementById("inventario")
 
-            for (let producto in data) {
+        // 🔥 render más rápido
+        let html = ""
 
-                const fila = document.createElement("tr")
+        for (let producto in data) {
+            html += `
+                <tr>
+                    <td>${producto}</td>
+                    <td>${data[producto]}</td>
+                </tr>
+            `
+        }
 
-                const tdProducto = document.createElement("td")
-                tdProducto.textContent = producto
+        tabla.innerHTML = html
 
-                const tdCantidad = document.createElement("td")
-                tdCantidad.textContent = data[producto]
-
-                fila.appendChild(tdProducto)
-                fila.appendChild(tdCantidad)
-
-                tabla.appendChild(fila)
-            }
-        })
-        .catch(err => console.error("Error inventario:", err))
+    } catch (err) {
+        console.error("Error inventario:", err)
+    }
 }
 
 
 // ---------------------------------
 // LIMPIAR INVENTARIO
 // ---------------------------------
-function limpiarInventario() {
+async function limpiarInventario() {
 
-    fetch("/inventario/limpiar", { method: "POST" })
-        .then(res => res.json())
-        .then(data => {
+    try {
+        const res = await fetch("/inventario/limpiar", { method: "POST" })
+        const data = await res.json()
 
-            document.getElementById("respuesta").innerText = data.respuesta
-            VozMotor.hablar(data.respuesta)
+        document.getElementById("respuesta").innerText = data.respuesta
+        VozMotor.hablar(data.respuesta)
 
-            actualizarInventario()
+        actualizarInventario()
 
-            esperandoConfirmacion = false
-            operacionPendiente = null
-        })
-        .catch(err => {
-            console.error(err)
-            VozMotor.hablar("No se pudo limpiar el inventario")
-        })
+    } catch (err) {
+        console.error(err)
+        VozMotor.hablar("No se pudo limpiar el inventario")
+    }
+
+    procesando = false
 }
