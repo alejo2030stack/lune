@@ -8,8 +8,8 @@ let VozMotor = {
     temporizador: null,
     ultimaActividad: Date.now(),
 
-    // 🔥 estado real del micrófono
-    isListening: false,
+    // 🧠 estado profesional
+    estado: "apagado", // "escuchando" | "reiniciando" | "apagado"
 
     iniciar(callback) {
 
@@ -30,17 +30,16 @@ let VozMotor = {
         // 🟢 MICRÓFONO ACTIVO REAL
         this.reconocimiento.onstart = () => {
 
-            this.isListening = true;
+            this.estado = "escuchando";
 
-            console.log("🎤 Micrófono activo");
+            console.log("🟢 Micrófono activo");
 
             if (typeof microfonoActivo === "function") {
                 microfonoActivo();
             }
-
         };
 
-        // 🧠 BUFFER INTELIGENTE (ANTI CORTES)
+        // 🧠 BUFFER INTELIGENTE
         this.reconocimiento.onresult = (event) => {
 
             let texto = event.results[event.results.length - 1][0].transcript;
@@ -58,14 +57,13 @@ let VozMotor = {
             this.temporizador = setTimeout(() => {
 
                 let fraseFinal = this.bufferFrase.trim();
-
                 this.bufferFrase = "";
 
                 console.log("🧠 frase final:", fraseFinal);
 
                 if (this.callbackComando && fraseFinal.length > 3) {
 
-                    // 🟡 estado procesando
+                    // 🟡 procesando (visual opcional)
                     if (typeof microfonoReiniciando === "function") {
                         microfonoReiniciando();
                     }
@@ -73,55 +71,75 @@ let VozMotor = {
                     this.callbackComando(fraseFinal);
                 }
 
-            }, 600); // 🔥 más rápido y natural
-
+            }, 600);
         };
 
-        // 🔄 REINICIO INTELIGENTE (SIN ROMPER UI)
+        // 🔄 REINICIO CONTROLADO (CLAVE)
         this.reconocimiento.onend = () => {
 
-    console.log("🎤 sesión finalizada");
+            console.log("🟡 sesión finalizada → reiniciando");
 
-    this.isListening = false;
+            this.estado = "reiniciando";
 
-    // ⚡ REINICIO INMEDIATO SIN ESPERA
-    try {
-        this.reconocimiento.start();
-        console.log("⚡ reinicio inmediato");
-    } catch (e) {
-        console.log("Error reinicio:", e);
+            if (typeof microfonoReiniciando === "function") {
+                microfonoReiniciando();
+            }
 
-        // fallback mínimo
-        setTimeout(() => {
             try {
                 this.reconocimiento.start();
-            } catch {}
-        }, 100);
-    }
+            } catch (e) {
 
-};
+                console.log("Error reinicio:", e);
 
-        // 🔴 ERROR REAL (único caso rojo)
+                setTimeout(() => {
+                    try {
+                        this.reconocimiento.start();
+                    } catch {}
+                }, 100);
+            }
+        };
+
+        // 🔴 ERROR REAL
         this.reconocimiento.onerror = (event) => {
 
-            console.log("⚠ Error en micrófono:", event.error);
+            console.log("🔴 Error en micrófono:", event.error);
 
-            this.isListening = false;
+            this.estado = "apagado";
 
             if (typeof microfonoInactivo === "function") {
                 microfonoInactivo();
             }
-
         };
 
-        this.reconocimiento.start();
+        // 🚀 INICIO
+        try {
+            this.reconocimiento.start();
+        } catch (e) {
+            console.log("Error inicial:", e);
+        }
 
         this.cargarVoz();
 
         console.log("🎤 VozMotor iniciado");
-
     },
 
+    // 🛑 DETENER MANUAL
+    detener() {
+
+        this.estado = "apagado";
+
+        try {
+            this.reconocimiento.stop();
+        } catch {}
+
+        if (typeof microfonoInactivo === "function") {
+            microfonoInactivo();
+        }
+
+        console.log("🛑 micrófono detenido");
+    },
+
+    // 🔊 VOZ
     cargarVoz() {
 
         let seleccionar = () => {
@@ -135,13 +153,10 @@ let VozMotor = {
             if (this.vozSistema) {
                 console.log("🔊 Voz Sabina cargada");
             }
-
         };
 
         seleccionar();
-
         speechSynthesis.onvoiceschanged = seleccionar;
-
     },
 
     hablar(texto, modo = "normal") {
@@ -178,7 +193,5 @@ let VozMotor = {
         mensaje.volume = 1;
 
         speechSynthesis.speak(mensaje);
-
     }
-
 };
