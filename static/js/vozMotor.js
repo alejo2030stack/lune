@@ -6,10 +6,8 @@ let VozMotor = {
 
     bufferFrase: "",
     temporizador: null,
-    ultimaActividad: Date.now(),
 
-    // 🧠 estado profesional
-    estado: "apagado", // "escuchando" | "reiniciando" | "apagado"
+    estado: "apagado",
 
     iniciar(callback) {
 
@@ -27,28 +25,25 @@ let VozMotor = {
         this.reconocimiento.continuous = true;
         this.reconocimiento.interimResults = false;
 
-        // 🟢 MICRÓFONO ACTIVO REAL
+        // 🟢 MICRO ACTIVO
         this.reconocimiento.onstart = () => {
 
             this.estado = "escuchando";
 
-            console.log("🟢 Micrófono activo");
+            console.log("🟢 mic activo");
 
             if (typeof microfonoActivo === "function") {
                 microfonoActivo();
             }
         };
 
-        // 🧠 BUFFER INTELIGENTE
+        // 🧠 BUFFER
         this.reconocimiento.onresult = (event) => {
 
             let texto = event.results[event.results.length - 1][0].transcript;
-
             texto = texto.toLowerCase().trim();
 
             console.log("🎤 fragmento:", texto);
-
-            this.ultimaActividad = Date.now();
 
             this.bufferFrase += " " + texto;
 
@@ -62,90 +57,56 @@ let VozMotor = {
                 console.log("🧠 frase final:", fraseFinal);
 
                 if (this.callbackComando && fraseFinal.length > 3) {
-
-                    // 🟡 procesando
-                    if (typeof microfonoReiniciando === "function") {
-                        microfonoReiniciando();
-                    }
-
                     this.callbackComando(fraseFinal);
                 }
 
             }, 600);
         };
 
-        // 🔄 REINICIO CONTROLADO
+        // 🔄 REINICIO (PARPADEO)
         this.reconocimiento.onend = () => {
 
-            console.log("🟡 sesión finalizada → reiniciando");
+            console.log("🔄 reiniciando...");
 
-            this.estado = "reiniciando";
-
-            if (typeof microfonoReiniciando === "function") {
-                microfonoReiniciando();
+            // ✨ parpadeo
+            if (typeof microfonoParpadeo === "function") {
+                microfonoParpadeo();
             }
 
             try {
                 this.reconocimiento.start();
-            } catch (e) {
-
-                console.log("Error reinicio:", e);
-
+            } catch {
                 setTimeout(() => {
                     try {
                         this.reconocimiento.start();
                     } catch {}
-                }, 100);
+                }, 200);
             }
         };
 
-        // 🔥 ERROR INTELIGENTE (FIX REAL)
+        // ⚠️ ERRORES (NO ROMPEN EL SISTEMA)
         this.reconocimiento.onerror = (event) => {
 
-            console.log("⚠ Error en micrófono:", event.error);
+            console.log("⚠ error:", event.error);
 
-            const erroresLeves = [
-                "no-speech",
-                "audio-capture",
-                "network",
-                "aborted"
-            ];
-
-            // 🟡 errores normales → seguir funcionando
-            if (erroresLeves.includes(event.error)) {
-
-                console.log("🟡 error leve → reiniciando");
-
-                this.estado = "reiniciando";
-
-                if (typeof microfonoReiniciando === "function") {
-                    microfonoReiniciando();
-                }
-
-                try {
-                    this.reconocimiento.start();
-                } catch {
-                    setTimeout(() => {
-                        try {
-                            this.reconocimiento.start();
-                        } catch {}
-                    }, 100);
-                }
-
-                return;
+            // ✨ parpadeo también
+            if (typeof microfonoParpadeo === "function") {
+                microfonoParpadeo();
             }
 
-            // 🔴 error real
-            console.log("🔴 error crítico → apagado");
-
-            this.estado = "apagado";
-
-            if (typeof microfonoInactivo === "function") {
-                microfonoInactivo();
+            // ⚡ intentar seguir siempre
+            try {
+                this.reconocimiento.start();
+            } catch {
+                setTimeout(() => {
+                    try {
+                        this.reconocimiento.start();
+                    } catch {}
+                }, 200);
             }
         };
 
-        // 🚀 INICIO
+        // 🚀 iniciar
         try {
             this.reconocimiento.start();
         } catch (e) {
@@ -157,7 +118,7 @@ let VozMotor = {
         console.log("🎤 VozMotor iniciado");
     },
 
-    // 🛑 DETENER MANUAL
+    // 🔴 DETENER REAL
     detener() {
 
         this.estado = "apagado";
@@ -170,7 +131,7 @@ let VozMotor = {
             microfonoInactivo();
         }
 
-        console.log("🛑 micrófono detenido");
+        console.log("🛑 mic detenido");
     },
 
     // 🔊 VOZ
@@ -185,7 +146,7 @@ let VozMotor = {
             );
 
             if (this.vozSistema) {
-                console.log("🔊 Voz Sabina cargada");
+                console.log("🔊 voz cargada");
             }
         };
 
@@ -200,7 +161,6 @@ let VozMotor = {
         speechSynthesis.cancel();
 
         let mensaje = new SpeechSynthesisUtterance(texto);
-
         mensaje.lang = "es-MX";
 
         if (this.vozSistema) {
@@ -210,16 +170,13 @@ let VozMotor = {
         if (modo === "alegre") {
             mensaje.pitch = 1.5;
             mensaje.rate = 1.2;
-        }
-        else if (modo === "alerta") {
+        } else if (modo === "alerta") {
             mensaje.pitch = 1.1;
             mensaje.rate = 1;
-        }
-        else if (modo === "secreto") {
+        } else if (modo === "secreto") {
             mensaje.pitch = 1.0;
             mensaje.rate = 0.9;
-        }
-        else {
+        } else {
             mensaje.pitch = 1.3;
             mensaje.rate = 1.1;
         }
