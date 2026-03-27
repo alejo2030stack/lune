@@ -63,7 +63,7 @@ let VozMotor = {
 
                 if (this.callbackComando && fraseFinal.length > 3) {
 
-                    // 🟡 procesando (visual opcional)
+                    // 🟡 procesando
                     if (typeof microfonoReiniciando === "function") {
                         microfonoReiniciando();
                     }
@@ -74,7 +74,7 @@ let VozMotor = {
             }, 600);
         };
 
-        // 🔄 REINICIO CONTROLADO (CLAVE)
+        // 🔄 REINICIO CONTROLADO
         this.reconocimiento.onend = () => {
 
             console.log("🟡 sesión finalizada → reiniciando");
@@ -99,10 +99,44 @@ let VozMotor = {
             }
         };
 
-        // 🔴 ERROR REAL
+        // 🔥 ERROR INTELIGENTE (FIX REAL)
         this.reconocimiento.onerror = (event) => {
 
-            console.log("🔴 Error en micrófono:", event.error);
+            console.log("⚠ Error en micrófono:", event.error);
+
+            const erroresLeves = [
+                "no-speech",
+                "audio-capture",
+                "network",
+                "aborted"
+            ];
+
+            // 🟡 errores normales → seguir funcionando
+            if (erroresLeves.includes(event.error)) {
+
+                console.log("🟡 error leve → reiniciando");
+
+                this.estado = "reiniciando";
+
+                if (typeof microfonoReiniciando === "function") {
+                    microfonoReiniciando();
+                }
+
+                try {
+                    this.reconocimiento.start();
+                } catch {
+                    setTimeout(() => {
+                        try {
+                            this.reconocimiento.start();
+                        } catch {}
+                    }, 100);
+                }
+
+                return;
+            }
+
+            // 🔴 error real
+            console.log("🔴 error crítico → apagado");
 
             this.estado = "apagado";
 
